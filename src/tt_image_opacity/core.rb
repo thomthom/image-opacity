@@ -1,30 +1,38 @@
-#-----------------------------------------------------------------------------
-# Version: 1.0.0
-# Compatible: SketchUp 7 (PC)
-#             (other versions untested)
-#-----------------------------------------------------------------------------
-#
-# CHANGELOG
-# 1.0.0 - 30.08.2010
-#		 * Initial release.
-#
-#-----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 #
 # Thomas Thomassen
 # thomas[at]thomthom[dot]net
 #
-#-----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 require 'sketchup.rb'
-require 'TT_Lib2/core.rb'
+begin
+  require 'TT_Lib2/core.rb'
+rescue LoadError => e
+  module TT
+    if @lib2_update.nil?
+      url = 'http://www.thomthom.net/software/sketchup/tt_lib2/errors/not-installed'
+      options = {
+        :dialog_title => 'TT_Lib² Not Installed',
+        :scrollable => false, :resizable => false, :left => 200, :top => 200
+      }
+      w = UI::WebDialog.new( options )
+      w.set_size( 500, 300 )
+      w.set_url( "#{url}?plugin=#{File.basename( __FILE__ )}" )
+      w.show
+      @lib2_update = w
+    end
+  end
+end
 
-TT::Lib.compatible?('2.0.0', 'TT Image Opacity')
 
-#-----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+if defined?( TT::Lib ) && TT::Lib.compatible?( '2.7.0', 'Image Opacity' )
 
 module TT::Plugins::ImageOpacity  
   
-  ### MENU & TOOLBARS ### --------------------------------------------------
+  ### MENU & TOOLBARS ### ------------------------------------------------------
   
   # Context menu
   UI.add_context_menu_handler { |context_menu|
@@ -55,10 +63,10 @@ module TT::Plugins::ImageOpacity
   }
   
   
-  ### MAIN SCRIPT ### ------------------------------------------------------
+  ### MAIN SCRIPT ### ----------------------------------------------------------
   
   
-  # Modifies the selected Image's transparancy
+  # @since 1.0.0
   def self.set_image_opacity(opacity = 0)
     image = Sketchup.active_model.selection.first
     material = TT::Image.material( image )
@@ -66,6 +74,7 @@ module TT::Plugins::ImageOpacity
   end
   
   
+  # @since 1.0.0
   def self.get_image_opacity
     image = Sketchup.active_model.selection.first
     material = TT::Image.material( image )
@@ -73,14 +82,42 @@ module TT::Plugins::ImageOpacity
   end
   
   
-  ### DEBUG ### ------------------------------------------------------------
+  ### DEBUG ### ----------------------------------------------------------------
   
-  def self.reload
+  # @note Debug method to reload the plugin.
+  #
+  # @example
+  #   TT::Plugins::SuperGlue.reload
+  #
+  # @param [Boolean] tt_lib Reloads TT_Lib2 if +true+.
+  #
+  # @return [Integer] Number of files reloaded.
+  # @since 1.0.0
+  def self.reload( tt_lib = false )
+    original_verbose = $VERBOSE
+    $VERBOSE = nil
+    TT::Lib.reload if tt_lib
+    # Core file (this)
     load __FILE__
+    # Supporting files
+    if defined?( PATH ) && File.exist?( PATH )
+      x = Dir.glob( File.join(PATH, '*.{rb,rbs}') ).each { |file|
+        load file
+      }
+      x.length + 1
+    else
+      1
+    end
+  ensure
+    $VERBOSE = original_verbose
   end
-  
+
 end # module
 
-#-----------------------------------------------------------------------------
-file_loaded( File.basename(__FILE__) )
-#-----------------------------------------------------------------------------
+end # if TT_Lib
+
+#-------------------------------------------------------------------------------
+
+file_loaded( __FILE__ )
+
+#-------------------------------------------------------------------------------
